@@ -37,6 +37,8 @@ class CaregiverViewModel extends ChangeNotifier {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   Timer? _simTimer;
+  Timer? _destConfirmTimer;
+  bool _disposed = false;
   int _simCursor = 0;
   int _demoScenarioCounter = 0;
 
@@ -819,7 +821,9 @@ class CaregiverViewModel extends ChangeNotifier {
 
     // Trong chế độ mô phỏng, giả lập người khiếm thị xác nhận "Có" sau 2 giây
     if (simulationMode) {
-      Timer(const Duration(seconds: 2), () {
+      _destConfirmTimer?.cancel();
+      _destConfirmTimer = Timer(const Duration(seconds: 2), () {
+        if (_disposed) return;
         final idx = destinationHistory.indexWhere(
           (d) => d.suggestionId == suggestion.suggestionId,
         );
@@ -1117,7 +1121,9 @@ class CaregiverViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _simTimer?.cancel();
+    _destConfirmTimer?.cancel();
     _link.dispose();
     _geocoding.dispose();
     if (enablePlatformPlugins) {

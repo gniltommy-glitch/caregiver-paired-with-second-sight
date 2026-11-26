@@ -15,9 +15,10 @@ void main() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      systemNavigationBarColor: Color(0xFF11161F),
-      statusBarBrightness: Brightness.dark,
-      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: kSurface,
+      statusBarBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
   runApp(const SecondSightCaregiverApp());

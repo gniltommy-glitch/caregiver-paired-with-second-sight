@@ -15,361 +15,325 @@ class DiagnosticsTab extends StatelessWidget {
     final battery = h.batteryPercent ?? 0;
     final cpu = h.cpuTemp ?? 0;
     final thermalWarn = h.isThermalThrottling;
+    final allGood = h.sensorsHealthy && !thermalWarn;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: <Widget>[
-        SpotlightCard(
-          accentColor: thermalWarn ? kWarning : kAccentSoft,
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        // Thẻ tóm tắt sức khỏe tổng quan kiểu Apple Health
+        SurfaceCard(
+          color: allGood ? kSurface : kWarningSoft,
+          borderColor: allGood ? kBorder : const Color(0xFFFDE68A),
+          child: Row(
             children: <Widget>[
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: <Widget>[
-                  StatusPill(
-                    label: h.sensorsHealthy
-                        ? 'PHẦN CỨNG ỔN ĐỊNH'
-                        : 'CÓ CẢM BIẾN GIÁN ĐOẠN',
-                    color: h.sensorsHealthy ? kAccent : kDanger,
-                    icon: h.sensorsHealthy
-                        ? Icons.verified_outlined
-                        : Icons.error_outline,
-                  ),
-                  Text(
-                    'Cập nhật ${formatRelativeTime(h.updatedAt)}',
-                    style: const TextStyle(fontSize: 12, color: kTextSub),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Giám sát kỹ thuật kính từ xa',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: kText,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: allGood ? kSuccessSoft : Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  allGood
+                      ? Icons.check_circle_rounded
+                      : Icons.warning_amber_rounded,
+                  color: allGood ? kSuccess : kWarning,
+                  size: 26,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                thermalWarn
-                    ? 'Cảnh báo: CPU Raspberry Pi 5 đang đạt ${cpu.toStringAsFixed(1)}°C (ngưỡng giảm xung ≥75°C). Nên gọi nhắc ${vm.wearerName} tạm nghỉ nơi thoáng mát.'
-                    : 'Theo dõi trực tiếp gói tin device_status (Raspberry Pi 5 + ToF SEN0628 + STM32F411 IMU) để kịp thời nhắc người đeo kính khi cảm biến suy giảm.',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: thermalWarn ? kWarning : kTextSub,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      allGood
+                          ? 'Kính đang hoạt động ổn định'
+                          : (thermalWarn
+                                ? 'Nhiệt độ Pi 5 đang tăng cao'
+                                : 'Có cảm biến cần kiểm tra'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      thermalWarn
+                          ? 'CPU đạt ${cpu.toStringAsFixed(1)}°C — nên nhắc ${vm.wearerName} nghỉ nơi thoáng mát.'
+                          : 'Cập nhật ${formatRelativeTime(h.updatedAt)} · Mọi cảm biến phản hồi tốt',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: kInkSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 560;
-            return GridView.count(
-              crossAxisCount: isWide ? 4 : 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: isWide ? 2.1 : 1.75,
-              children: <Widget>[
-                MetricArcTile(
-                  label: 'Pin bộ kính',
-                  value: h.batteryPercent != null ? '$battery%' : 'Chưa rõ',
-                  subtitle: battery < 25 ? 'Cần sạc sớm' : 'Đủ cho hành trình',
-                  icon: Icons.battery_charging_full_rounded,
-                  color: battery < 25 ? kDanger : kAccent,
-                  progress: battery / 100.0,
-                ),
-                MetricArcTile(
-                  label: 'Nhiệt độ Pi 5',
-                  value: h.cpuTemp != null
-                      ? '${cpu.toStringAsFixed(1)}°C'
-                      : '--',
-                  subtitle: thermalWarn
-                      ? 'Đang throttling!'
-                      : 'Bình thường (<75°C)',
-                  icon: Icons.thermostat_rounded,
-                  color: thermalWarn ? kDanger : kAccent,
-                  progress: (cpu / 90.0).clamp(0.0, 1.0),
-                ),
-                MetricArcTile(
-                  label: 'Nhận diện YOLO',
-                  value: '${h.yoloFps.toStringAsFixed(1)} FPS',
-                  subtitle: h.yoloFps < 10 ? 'Tốc độ thấp' : 'Luồng vision ổn',
-                  icon: Icons.visibility_outlined,
-                  color: h.yoloFps < 10 ? kWarning : kAccent2,
-                  progress: (h.yoloFps / 24.0).clamp(0.0, 1.0),
-                ),
-                MetricArcTile(
-                  label: 'Độ chính xác GPS',
-                  value: vm.gpsAccuracyM != null
-                      ? '±${vm.gpsAccuracyM!.toStringAsFixed(1)} m'
-                      : '--',
-                  subtitle: (vm.gpsAccuracyM ?? 0) <= 20
-                      ? 'Đạt chuẩn rẽ (≤20m)'
-                      : 'Sai số lớn',
-                  icon: Icons.gps_fixed_rounded,
-                  color: (vm.gpsAccuracyM ?? 0) <= 20 ? kAccent : kWarning,
-                  progress: (1.0 - ((vm.gpsAccuracyM ?? 5.0) / 30.0)).clamp(
-                    0.15,
-                    1.0,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: kSurface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: kBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text(
-                'Trạng thái từng phân hệ phần cứng',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: kText,
-                ),
+
+        // Lưới 2×2 rộng rãi — không bao giờ cắt chữ "..." trên màn hình điện thoại
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.25,
+          children: <Widget>[
+            CleanMetricTile(
+              label: 'Pin bộ kính',
+              value: h.batteryPercent != null ? '$battery%' : '--',
+              caption: battery < 25 ? 'Cần sạc sớm' : 'Đủ hành trình',
+              icon: Icons.battery_charging_full_rounded,
+              accentColor: battery < 25 ? kDanger : kSuccess,
+              accentBg: battery < 25 ? kDangerSoft : kSuccessSoft,
+              progress: battery / 100.0,
+            ),
+            CleanMetricTile(
+              label: 'Nhiệt độ Pi 5',
+              value: h.cpuTemp != null ? '${cpu.toStringAsFixed(1)}°C' : '--',
+              caption: thermalWarn ? 'Cần làm mát' : 'Ổn định',
+              icon: Icons.thermostat_rounded,
+              accentColor: thermalWarn ? kDanger : kPrimary,
+              accentBg: thermalWarn ? kDangerSoft : kPrimarySoft,
+              progress: (cpu / 90.0).clamp(0.05, 1.0),
+            ),
+            CleanMetricTile(
+              label: 'Tốc độ nhận diện',
+              value: '${h.yoloFps.toStringAsFixed(1)} FPS',
+              caption: h.yoloFps < 10 ? 'Đang chậm' : 'Mượt mà',
+              icon: Icons.visibility_outlined,
+              accentColor: h.yoloFps < 10 ? kWarning : kInfo,
+              accentBg: h.yoloFps < 10 ? kWarningSoft : kInfoSoft,
+              progress: (h.yoloFps / 24.0).clamp(0.05, 1.0),
+            ),
+            CleanMetricTile(
+              label: 'Sai số GPS',
+              value: vm.gpsAccuracyM != null
+                  ? '±${vm.gpsAccuracyM!.toStringAsFixed(1)} m'
+                  : '--',
+              caption: (vm.gpsAccuracyM ?? 0) <= 20
+                  ? 'Đạt chuẩn rẽ'
+                  : 'Tín hiệu yếu',
+              icon: Icons.gps_fixed_rounded,
+              accentColor: (vm.gpsAccuracyM ?? 0) <= 20 ? kSuccess : kWarning,
+              accentBg: (vm.gpsAccuracyM ?? 0) <= 20
+                  ? kSuccessSoft
+                  : kWarningSoft,
+              progress: (1.0 - ((vm.gpsAccuracyM ?? 5.0) / 30.0)).clamp(
+                0.15,
+                1.0,
               ),
-              const SizedBox(height: 10),
-              _SensorStatusRow(
-                title: 'Camera CSI IMX708 (Vision + VietOCR)',
-                detail: h.cameraOk
-                    ? 'Đang cấp khung hình 640×360 & chụp tĩnh 2304×1296'
-                    : 'Mất tín hiệu camera — không thể nhận diện vật cản xa',
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
+
+        const SectionHeader(title: 'Trạng thái cảm biến'),
+        SurfaceCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Column(
+            children: <Widget>[
+              _SensorRow(
+                icon: Icons.camera_alt_outlined,
+                title: 'Camera quan sát (IMX708)',
+                subtitle: h.cameraOk
+                    ? 'Đang hoạt động bình thường'
+                    : 'Mất tín hiệu camera',
                 ok: h.cameraOk,
               ),
-              const Divider(color: kBorder, height: 18),
-              _SensorStatusRow(
-                title: 'Cảm biến khoảng cách ToF SEN0628 (Ma trận 8×8 I2C)',
-                detail: h.lidarOk
-                    ? 'Đang quét hành lang an toàn phía trước'
-                    : 'Lỗi giao tiếp I2C ToF — cần kiểm tra dây',
+              const Divider(),
+              _SensorRow(
+                icon: Icons.sensors_rounded,
+                title: 'Cảm biến khoảng cách ToF 8×8',
+                subtitle: h.lidarOk
+                    ? 'Đang đo khoảng cách hành lang phía trước'
+                    : 'Mất kết nối cảm biến ToF',
                 ok: h.lidarOk,
               ),
-              const Divider(color: kBorder, height: 18),
-              _SensorStatusRow(
-                title:
-                    'Vi điều khiển STM32F411E-DISCO (Mahony IMU + CS43L22 DAC)',
-                detail: h.stm32Ok
-                    ? 'Heading ${(h.stm32Heading ?? 0).toStringAsFixed(1)}° · '
-                          'Pitch ${h.stm32Pitch.toStringAsFixed(1)}° · '
-                          'Roll ${h.stm32Roll.toStringAsFixed(1)}° '
+              const Divider(),
+              _SensorRow(
+                icon: Icons.explore_outlined,
+                title: 'Cảm biến hướng STM32',
+                subtitle: h.stm32Ok
+                    ? 'Hướng ${(h.stm32Heading ?? 0).toStringAsFixed(0)}° · '
+                          'Nghiêng ${h.stm32Pitch.toStringAsFixed(1)}° '
                           '(${h.stm32Calibrated ? 'Đã hiệu chuẩn' : 'Chưa hiệu chuẩn'})'
-                    : 'Mất kết nối UART 1 Mbaud với STM32',
+                    : 'Mất kết nối bo mạch STM32',
                 ok: h.stm32Ok,
               ),
             ],
           ),
         ),
-        if (vm.simulationMode) ...<Widget>[
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: kSurface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: kBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Thử nghiệm phát hiện bất thường thụ động (Demo)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: kWarning,
+        const SizedBox(height: 22),
+
+        const SectionHeader(
+          title: 'Nhật ký an toàn',
+          subtitle: 'Các sự kiện và cảnh báo phát sinh trong chuyến đi',
+        ),
+        SurfaceCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: vm.safetyEvents.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'Chưa ghi nhận sự kiện bất thường nào.',
+                    style: TextStyle(color: kInkMuted),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                )
+              : Column(
                   children: <Widget>[
-                    ActionChip(
-                      avatar: const Icon(
-                        Icons.personal_injury_outlined,
-                        size: 16,
-                        color: kDanger,
-                      ),
-                      label: const Text('Nghi rơi kính / té ngã (IMU)'),
-                      onPressed: () => vm.triggerDemoAnomaly('imu_fall'),
-                    ),
-                    ActionChip(
-                      avatar: const Icon(
-                        Icons.local_fire_department_outlined,
-                        size: 16,
-                        color: kWarning,
-                      ),
-                      label: const Text('Pi 5 quá nhiệt (79.4°C)'),
-                      onPressed: () => vm.triggerDemoAnomaly('thermal'),
-                    ),
-                    ActionChip(
-                      avatar: const Icon(
-                        Icons.wrong_location_outlined,
-                        size: 16,
-                        color: kAccent2,
-                      ),
-                      label: const Text('Lệch tuyến kéo dài'),
-                      onPressed: () => vm.triggerDemoAnomaly('off_route'),
-                    ),
-                    ActionChip(
-                      avatar: const Icon(
-                        Icons.restart_alt_rounded,
-                        size: 16,
-                        color: kAccent,
-                      ),
-                      label: const Text('Khôi phục bình thường'),
-                      onPressed: vm.resetDemoHardwareNormal,
-                    ),
+                    for (
+                      var i = 0;
+                      i < vm.safetyEvents.length;
+                      i++
+                    ) ...<Widget>[
+                      if (i > 0) const Divider(),
+                      _SafetyEventRow(event: vm.safetyEvents[i]),
+                    ],
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 18),
-        const Text(
-          'Nhật ký an toàn & sự kiện hành trình',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: kText,
-          ),
         ),
-        const SizedBox(height: 10),
-        ...vm.safetyEvents.map(_buildEventTile),
       ],
-    );
-  }
-
-  Widget _buildEventTile(SafetyEvent ev) {
-    final (Color color, IconData icon) = switch (ev.severity) {
-      EventSeverity.critical => (kDanger, Icons.warning_amber_rounded),
-      EventSeverity.warning => (kWarning, Icons.report_problem_outlined),
-      EventSeverity.info => (kAccent, Icons.info_outline_rounded),
-    };
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: ev.severity == EventSeverity.critical
-                ? kDanger.withValues(alpha: 0.45)
-                : kBorder,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          ev.title,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: kText,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        formatRelativeTime(ev.timestamp),
-                        style: const TextStyle(fontSize: 11, color: kTextSub),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ev.detail,
-                    style: const TextStyle(fontSize: 12.5, color: kTextSub),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
 
-class _SensorStatusRow extends StatelessWidget {
+class _SensorRow extends StatelessWidget {
+  final IconData icon;
   final String title;
-  final String detail;
+  final String subtitle;
   final bool ok;
 
-  const _SensorStatusRow({
+  const _SensorRow({
+    required this.icon,
     required this.title,
-    required this.detail,
+    required this.subtitle,
     required this.ok,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Icon(
-          ok ? Icons.check_circle_rounded : Icons.cancel_rounded,
-          color: ok ? kAccent : kDanger,
-          size: 22,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: kText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                detail,
-                style: const TextStyle(fontSize: 12, color: kTextSub),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: ok ? kSuccessSoft : kDangerSoft,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 20, color: ok ? kSuccess : kDanger),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: kInk,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 12.5, color: kInkSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            ok ? Icons.check_circle_rounded : Icons.error_rounded,
+            size: 20,
+            color: ok ? kSuccess : kDanger,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SafetyEventRow extends StatelessWidget {
+  final SafetyEvent event;
+
+  const _SafetyEventRow({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color color, Color bg, IconData icon) = switch (event.severity) {
+      EventSeverity.critical => (kDanger, kDangerSoft, Icons.warning_rounded),
+      EventSeverity.warning => (
+        kWarning,
+        kWarningSoft,
+        Icons.report_problem_outlined,
+      ),
+      EventSeverity.info => (
+        kPrimary,
+        kPrimarySoft,
+        Icons.info_outline_rounded,
+      ),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        event.title,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: kInk,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      formatRelativeTime(event.timestamp),
+                      style: const TextStyle(fontSize: 11.5, color: kInkMuted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  event.detail,
+                  style: const TextStyle(fontSize: 12.5, color: kInkSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

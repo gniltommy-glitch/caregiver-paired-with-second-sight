@@ -6,10 +6,8 @@ import 'package:flutter/material.dart';
 import '../../domain/models/caregiver_models.dart';
 import '../core/caregiver_theme.dart';
 
-/// Hiển thị ảnh chụp tĩnh từ camera IMX708 của kính thông minh.
-/// - Nếu có `imageBase64` thật từ Pi 5 / Relay: giải mã và hiển thị ảnh JPEG gốc kèm lớp phủ HUD.
-/// - Nếu đang ở chế độ mô phỏng (không có dữ liệu nhị phân): dựng khung cảnh đường phố
-///   trực quan với bounding box YOLO và khoảng cách ToF để kiểm thử trực tiếp trên điện thoại.
+/// Khung xem ảnh chụp tĩnh từ camera kính IMX708.
+/// Thiết kế tinh gọn theo chuẩn camera/photo viewer tự nhiên (không lưới neon).
 class CameraScenePreview extends StatelessWidget {
   final String? imageBase64;
   final String sceneKind;
@@ -25,7 +23,7 @@ class CameraScenePreview extends StatelessWidget {
     this.sceneKind = 'bus_stop',
     this.detections = const <SceneDetectionBox>[],
     this.tofMinM,
-    this.height = 210,
+    this.height = 220,
   });
 
   Uint8List? _tryDecodeImage() {
@@ -44,17 +42,14 @@ class CameraScenePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final bytes = _tryDecodeImage();
     final timeLabel =
-        '${capturedAt.hour.toString().padLeft(2, '0')}:${capturedAt.minute.toString().padLeft(2, '0')}:${capturedAt.second.toString().padLeft(2, '0')}';
+        '${capturedAt.hour.toString().padLeft(2, '0')}:${capturedAt.minute.toString().padLeft(2, '0')}';
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         height: height,
         width: double.infinity,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0A0F16),
-          border: Border.all(color: kBorder),
-        ),
+        color: const Color(0xFFE8EEF2),
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
@@ -64,15 +59,15 @@ class CameraScenePreview extends StatelessWidget {
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
                 errorBuilder: (_, _, _) => CustomPaint(
-                  painter: _SimulatedStreetPainter(sceneKind: sceneKind),
+                  painter: _DaylightStreetScenePainter(sceneKind: sceneKind),
                 ),
               )
             else
               CustomPaint(
-                painter: _SimulatedStreetPainter(sceneKind: sceneKind),
+                painter: _DaylightStreetScenePainter(sceneKind: sceneKind),
               ),
 
-            // Lớp phủ bounding box YOLO + khoảng cách ToF
+            // Nhãn vật thể YOLO tinh gọn, dễ đọc
             if (detections.isNotEmpty)
               LayoutBuilder(
                 builder: (context, constraints) => Stack(
@@ -85,7 +80,7 @@ class CameraScenePreview extends StatelessWidget {
                     final isHazard =
                         box.label.contains('obstacle') ||
                         box.label.contains('vehicle');
-                    final boxColor = isHazard ? kWarning : kAccent;
+                    final boxColor = isHazard ? kWarning : kPrimary;
 
                     return Positioned(
                       left: left,
@@ -94,27 +89,28 @@ class CameraScenePreview extends StatelessWidget {
                       height: boxHeight,
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border.all(color: boxColor, width: 1.8),
-                          borderRadius: BorderRadius.circular(6),
-                          color: boxColor.withValues(alpha: 0.08),
+                          border: Border.all(color: boxColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                          color: boxColor.withValues(alpha: 0.10),
                         ),
                         alignment: Alignment.topLeft,
                         child: Container(
+                          margin: const EdgeInsets.all(4),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: 7,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xDD0B1017),
-                            borderRadius: BorderRadius.circular(4),
+                            color: Colors.white.withValues(alpha: 0.94),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            '${box.label} ${(box.confidence * 100).round()}%'
+                            '${box.label}'
                             '${box.distanceM != null ? ' · ${box.distanceM!.toStringAsFixed(1)}m' : ''}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                               color: boxColor,
                             ),
@@ -126,7 +122,7 @@ class CameraScenePreview extends StatelessWidget {
                 ),
               ),
 
-            // HUD góc trên: nguồn ảnh camera kính + thời gian chụp
+            // Thẻ thông tin nhỏ góc trên (trắng mờ kiểu iOS Camera)
             Positioned(
               left: 10,
               top: 10,
@@ -137,15 +133,12 @@ class CameraScenePreview extends StatelessWidget {
                   Flexible(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xCC0D1117),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: kAccent.withValues(alpha: 0.35),
-                        ),
+                        color: const Color(0xD90F172A),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -153,20 +146,20 @@ class CameraScenePreview extends StatelessWidget {
                           const Icon(
                             Icons.photo_camera_outlined,
                             size: 13,
-                            color: kAccent,
+                            color: Colors.white,
                           ),
                           const SizedBox(width: 5),
                           Flexible(
                             child: Text(
                               bytes != null
-                                  ? 'IMX708 · $timeLabel'
-                                  : 'KHUNG HÌNH KÍNH · $timeLabel',
+                                  ? 'Ảnh kính · $timeLabel'
+                                  : 'Ảnh mô phỏng · $timeLabel',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: kText,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
                               ),
                             ),
                           ),
@@ -178,45 +171,24 @@ class CameraScenePreview extends StatelessWidget {
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xCC0D1117),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: (tofMinM! < 2.2 ? kDanger : kWarning)
-                              .withValues(alpha: 0.5),
-                        ),
+                        color: Colors.white.withValues(alpha: 0.94),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        'ToF: ${tofMinM!.toStringAsFixed(1)} m',
+                        'Vật gần nhất ${tofMinM!.toStringAsFixed(1)} m',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: tofMinM! < 2.2 ? kDanger : kWarning,
+                          color: tofMinM! < 2.2 ? kDanger : kInk,
                         ),
                       ),
                     ),
                   ],
                 ],
-              ),
-            ),
-
-            // Ghi chú không truyền video liên tục
-            Positioned(
-              left: 10,
-              bottom: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xB30D1117),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Ảnh tĩnh theo yêu cầu (~150 KB) · Không stream video nền',
-                  style: TextStyle(fontSize: 10, color: kTextSub),
-                ),
               ),
             ),
           ],
@@ -226,119 +198,135 @@ class CameraScenePreview extends StatelessWidget {
   }
 }
 
-class _SimulatedStreetPainter extends CustomPainter {
+/// Minh họa đường phố ban ngày tự nhiên khi ở chế độ mô phỏng.
+class _DaylightStreetScenePainter extends CustomPainter {
   final String sceneKind;
 
-  const _SimulatedStreetPainter({required this.sceneKind});
+  const _DaylightStreetScenePainter({required this.sceneKind});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final skyPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: <Color>[
-          Color(0xFF142433),
-          Color(0xFF1E3240),
-          Color(0xFF121821),
-        ],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, skyPaint);
+    final horizon = size.height * 0.44;
 
-    final horizon = size.height * 0.48;
-
-    // Mặt đường & vỉa hè phối cảnh
-    final roadPath = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * 0.30, horizon)
-      ..lineTo(size.width * 0.72, horizon)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(roadPath, Paint()..color = const Color(0xFF1B222C));
-
-    // Vỉa hè gạch dẫn hướng màu vàng
-    final tactilePath = Path()
-      ..moveTo(size.width * 0.76, size.height)
-      ..lineTo(size.width * 0.62, horizon + 8)
-      ..lineTo(size.width * 0.66, horizon + 8)
-      ..lineTo(size.width * 0.85, size.height)
-      ..close();
-    canvas.drawPath(
-      tactilePath,
-      Paint()..color = const Color(0xFFF59E0B).withValues(alpha: 0.42),
+    // Bầu trời sáng dịu ban ngày
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, horizon),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[Color(0xFFCDE5F5), Color(0xFFEAF3F8)],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, horizon)),
     );
 
+    // Dãy nhà phố nền nhẹ
+    canvas.drawRect(
+      Rect.fromLTWH(0, horizon - 38, size.width * 0.32, 40),
+      Paint()..color = const Color(0xFFD5DEE6),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width * 0.65, horizon - 46, size.width * 0.35, 48),
+      Paint()..color = const Color(0xFFCAD6E0),
+    );
+
+    // Mặt đường nhựa & vỉa hè lát gạch sáng
+    canvas.drawRect(
+      Rect.fromLTWH(0, horizon, size.width, size.height - horizon),
+      Paint()..color = const Color(0xFFBDC7D1),
+    );
+
+    final sidewalkPath = Path()
+      ..moveTo(size.width * 0.56, horizon)
+      ..lineTo(size.width, horizon)
+      ..lineTo(size.width, size.height)
+      ..lineTo(size.width * 0.42, size.height)
+      ..close();
+    canvas.drawPath(sidewalkPath, Paint()..color = const Color(0xFFE2E7EC));
+
+    // Làn gạch dẫn hướng màu vàng cho người khiếm thị
+    final tactilePath = Path()
+      ..moveTo(size.width * 0.72, horizon + 4)
+      ..lineTo(size.width * 0.77, horizon + 4)
+      ..lineTo(size.width * 0.86, size.height)
+      ..lineTo(size.width * 0.74, size.height)
+      ..close();
+    canvas.drawPath(tactilePath, Paint()..color = const Color(0xFFEAB308));
+
     if (sceneKind == 'crosswalk') {
-      final stripePaint = Paint()..color = Colors.white.withValues(alpha: 0.55);
-      for (var i = 0; i < 6; i++) {
-        final x = size.width * (0.18 + i * 0.11);
+      final stripe = Paint()..color = Colors.white.withValues(alpha: 0.9);
+      for (var i = 0; i < 5; i++) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromLTWH(x, size.height * 0.74, size.width * 0.06, 24),
+            Rect.fromLTWH(
+              size.width * (0.14 + i * 0.14),
+              size.height * 0.72,
+              size.width * 0.08,
+              22,
+            ),
             const Radius.circular(3),
           ),
-          stripePaint,
+          stripe,
         );
       }
     } else if (sceneKind == 'construction') {
-      final barrierRect = Rect.fromLTWH(
-        size.width * 0.25,
+      final rect = Rect.fromLTWH(
+        size.width * 0.24,
         size.height * 0.34,
-        size.width * 0.50,
-        size.height * 0.44,
+        size.width * 0.52,
+        size.height * 0.42,
       );
       canvas.drawRRect(
-        RRect.fromRectAndRadius(barrierRect, const Radius.circular(6)),
-        Paint()..color = const Color(0xFF3A2618),
+        RRect.fromRectAndRadius(rect, const Radius.circular(8)),
+        Paint()..color = const Color(0xFFFEF3C7),
       );
-      final hazardStripe = Paint()
-        ..color = kWarning.withValues(alpha: 0.75)
-        ..strokeWidth = 6;
+      final stripe = Paint()
+        ..color = const Color(0xFFD97706)
+        ..strokeWidth = 7;
       for (var i = 0; i < 5; i++) {
-        final dx = barrierRect.left + 16 + i * 34;
+        final x = rect.left + 20 + i * 36;
         canvas.drawLine(
-          Offset(dx, barrierRect.top + 12),
-          Offset(dx - 14, barrierRect.top + 38),
-          hazardStripe,
+          Offset(x, rect.top + 10),
+          Offset(x - 16, rect.top + 40),
+          stripe,
         );
       }
     } else {
-      // Biển báo trạm xe buýt / phòng khám
-      final postPaint = Paint()
-        ..color = const Color(0xFF6E7D90)
-        ..strokeWidth = 4;
+      // Cột & biển báo trạm xe buýt màu xanh dương Việt Nam
       canvas.drawLine(
-        Offset(size.width * 0.69, size.height * 0.20),
-        Offset(size.width * 0.69, size.height * 0.78),
-        postPaint,
+        Offset(size.width * 0.70, size.height * 0.20),
+        Offset(size.width * 0.70, size.height * 0.78),
+        Paint()
+          ..color = const Color(0xFF475569)
+          ..strokeWidth = 4,
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(
-            size.width * 0.60,
-            size.height * 0.17,
-            size.width * 0.19,
+            size.width * 0.61,
+            size.height * 0.16,
+            size.width * 0.18,
             size.height * 0.22,
           ),
-          const Radius.circular(6),
+          const Radius.circular(8),
         ),
-        Paint()..color = const Color(0xFF1D4E68),
+        Paint()..color = const Color(0xFF0369A1),
       );
-    }
-
-    // Lưới tâm ngắm ToF 8x8 nhẹ
-    final gridPaint = Paint()
-      ..color = kAccent.withValues(alpha: 0.08)
-      ..strokeWidth = 0.8;
-    for (var i = 1; i < 8; i++) {
-      final gx = size.width * (i / 8);
-      final gy = size.height * (i / 8);
-      canvas.drawLine(Offset(gx, 0), Offset(gx, size.height), gridPaint);
-      canvas.drawLine(Offset(0, gy), Offset(size.width, gy), gridPaint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            size.width * 0.64,
+            size.height * 0.21,
+            size.width * 0.12,
+            size.height * 0.08,
+          ),
+          const Radius.circular(4),
+        ),
+        Paint()..color = Colors.white,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SimulatedStreetPainter oldDelegate) =>
+  bool shouldRepaint(covariant _DaylightStreetScenePainter oldDelegate) =>
       oldDelegate.sceneKind != sceneKind;
 }

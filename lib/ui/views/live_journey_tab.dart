@@ -58,8 +58,7 @@ class _LiveJourneyTabState extends State<LiveJourneyTab> {
   Future<void> _callWearer() async {
     final phone = widget.vm.wearerPhone.trim();
     if (phone.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: phone);
-    await launchUrl(uri);
+    await launchUrl(Uri(scheme: 'tel', path: phone));
   }
 
   Future<void> _shareSosLocation(SosIncident sos) async {
@@ -86,10 +85,11 @@ class _LiveJourneyTabState extends State<LiveJourneyTab> {
     _noteCtrl.clear();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: kCard2,
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: kInk,
         content: Text(
-          'Đã gửi "${sent.name}" tới kính của ${widget.vm.wearerName} (chờ xác nhận giọng nói).',
-          style: const TextStyle(color: kText),
+          'Đã gửi "${sent.name}" tới máy của ${widget.vm.wearerName}.',
+          style: const TextStyle(color: Colors.white),
         ),
       ),
     );
@@ -109,99 +109,276 @@ class _LiveJourneyTabState extends State<LiveJourneyTab> {
     final hasActiveSos = sos != null && sos.active;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      padding: EdgeInsets.zero,
       children: <Widget>[
-        _buildHeroCard(vm),
-        if (vm.simulationMode) ...<Widget>[
-          const SizedBox(height: 12),
-          _buildSimulationQuickBar(vm),
-        ],
-        if (hasActiveSos) ...<Widget>[
-          const SizedBox(height: 14),
-          _buildEmergencySosCard(sos),
-        ],
-        if (vm.pendingAssistCount > 0) ...<Widget>[
-          const SizedBox(height: 14),
-          _buildPendingAssistCallout(vm),
-        ],
-        const SizedBox(height: 16),
-        _buildSessionMapSection(vm),
-        const SizedBox(height: 18),
-        _buildRemoteDestinationCard(vm),
+        if (hasActiveSos)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+            child: _buildEmergencySosCard(sos),
+          ),
+
+        // Bản đồ tràn viền kiểu Apple Find My / Grab hoặc Màn chắn riêng tư
+        if (vm.isPrivacySharingActive)
+          _buildFullBleedLiveMap(vm)
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: _buildPrivacyCurtainCard(vm),
+          ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (vm.pendingAssistCount > 0) ...<Widget>[
+                _buildUnreadAssistBanner(vm),
+                const SizedBox(height: 16),
+              ],
+              _buildJourneySummaryCard(vm),
+              const SizedBox(height: 20),
+              _buildRemoteDestinationSection(vm),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildHeroCard(CaregiverViewModel vm) {
-    final activeNav = vm.navigationState == 'navigating';
-    return SpotlightCard(
-      accentColor: vm.activeSos?.active == true ? kDanger : kAccentSoft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildFullBleedLiveMap(CaregiverViewModel vm) {
+    final center = vm.wearerPosition ?? const LatLng(10.7594, 106.6735);
+    final routePoints = vm.activeRoute?.points ?? const <LatLng>[];
+    final etaMin = (vm.remainingSeconds / 60).ceil();
+
+    return SizedBox(
+      height: 315,
+      child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: 15.5,
+              onLongPress: (_, latLng) {
+                _confirmPushDestination(
+                  PlaceLocation(
+                    name:
+                        'Điểm đã ghim (${latLng.latitude.toStringAsFixed(4)}, ${latLng.longitude.toStringAsFixed(4)})',
+                    address: 'Chọn trực tiếp trên bản đồ',
+                    point: latLng,
+                  ),
+                );
+              },
+            ),
             children: <Widget>[
-              StatusPill(
-                label: vm.simulationMode
-                    ? 'CHẾ ĐỘ MÔ PHỎNG'
-                    : (vm.liveConnected
-                          ? 'ĐÃ KẾT NỐI TRỰC TIẾP'
-                          : 'MẤT KẾT NỐI'),
-                color: vm.simulationMode
-                    ? kWarning
-                    : (vm.liveConnected ? kAccent : kDanger),
-                icon: vm.simulationMode
-                    ? Icons.science_outlined
-                    : (vm.liveConnected
-                          ? Icons.cloud_done_outlined
-                          : Icons.cloud_off),
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'vn.secondsight.caregiver',
               ),
-              StatusPill(
-                label: activeNav ? 'ĐANG DẪN ĐƯỜNG' : 'NGHỈ · RIÊNG TƯ',
-                color: activeNav ? kAccent : kAccent2,
-                icon: activeNav
-                    ? Icons.directions_walk
-                    : Icons.shield_moon_outlined,
+              if (routePoints.length >= 2)
+                PolylineLayer(
+                  polylines: <Polyline>[
+                    Polyline(
+                      points: routePoints,
+                      strokeWidth: 5,
+                      color: kPrimary,
+                    ),
+                  ],
+                ),
+              MarkerLayer(
+                markers: <Marker>[
+                  for (final blocked in vm.blockedLocations)
+                    Marker(
+                      point: blocked,
+                      width: 34,
+                      height: 34,
+                      child: Tooltip(
+                        message: 'Vỉa hè bị chặn (path_blocked)',
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                            boxShadow: kCardShadow,
+                          ),
+                          child: const Icon(
+                            Icons.construction_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (vm.activeRoute != null)
+                    Marker(
+                      point: vm.activeRoute!.destination.point,
+                      width: 36,
+                      height: 36,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: kInk,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2.5),
+                          boxShadow: kCardShadow,
+                        ),
+                        child: const Icon(
+                          Icons.flag_rounded,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  if (vm.wearerPosition != null)
+                    Marker(
+                      point: vm.wearerPosition!,
+                      width: 44,
+                      height: 44,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: kPrimary.withValues(alpha: 0.20),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(7),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: kPrimary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: kCardShadow,
+                          ),
+                          child: const Icon(
+                            Icons.directions_walk_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
+
+          // Thẻ trạng thái nổi gọn gàng trên bản đồ
+          Positioned(
+            left: 14,
+            top: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: kCardShadow,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: kSuccess,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Đang đi bộ · Còn ${vm.remainingMeters.round()} m (~$etaMin phút)',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: kInk,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Nút gọi nhanh nổi ở góc bản đồ
+          Positioned(
+            right: 14,
+            bottom: 14,
+            child: FloatingActionButton.small(
+              heroTag: 'call_wearer_fab',
+              backgroundColor: kSurface,
+              foregroundColor: kPrimary,
+              elevation: 3,
+              tooltip: 'Gọi ${vm.wearerName}',
+              onPressed: vm.wearerPhone.trim().isEmpty ? null : _callWearer,
+              child: const Icon(Icons.phone_in_talk_rounded, size: 20),
+            ),
+          ),
+
+          // Ghi chú nguồn bản đồ OSM tinh gọn
+          Positioned(
+            left: 12,
+            bottom: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                '© OpenStreetMap · Nhấn giữ bản đồ để gửi điểm đến',
+                style: TextStyle(fontSize: 10.5, color: kInkSecondary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivacyCurtainCard(CaregiverViewModel vm) {
+    return SurfaceCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: kPrimarySoft,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.verified_user_outlined,
+              size: 28,
+              color: kPrimary,
+            ),
+          ),
           const SizedBox(height: 14),
-          Text(
-            activeNav
-                ? 'Đồng hành cùng ${vm.wearerName}'
-                : '${vm.wearerName} đang ở trạng thái nghỉ',
-            style: Theme.of(context).textTheme.headlineMedium,
+          const Text(
+            'Màn chắn riêng tư đang bật',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: kInk,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
-            activeNav && vm.activeRoute != null
-                ? 'Đích đến: ${vm.activeRoute!.destination.name} · '
-                      'Còn ${vm.remainingMeters.round()} m (~${(vm.remainingSeconds / 60).ceil()} phút đi bộ)'
-                : 'SecondSight bảo vệ quyền tự chủ của người khiếm thị: chỉ chia sẻ vị trí trực tiếp khi đang bật dẫn đường hoặc có tín hiệu SOS.',
-            style: Theme.of(context).textTheme.bodyMedium,
+            '${vm.wearerName} hiện đang ở trạng thái nghỉ. Để tôn trọng quyền tự chủ, vị trí GPS chỉ hiển thị khi đang bật dẫn đường hoặc có tín hiệu khẩn cấp SOS.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13.5, color: kInkSecondary),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: <Widget>[
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: vm.wearerPhone.trim().isEmpty ? null : _callWearer,
-                  icon: const Icon(Icons.phone_in_talk_outlined, size: 18),
+                  icon: const Icon(Icons.phone_outlined, size: 18),
                   label: Text('Gọi ${vm.wearerName}'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: FilledButton.tonalIcon(
+                child: FilledButton.icon(
                   onPressed: widget.onOpenPairingTab,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kCard2,
-                    foregroundColor: kAccent,
-                  ),
-                  icon: const Icon(Icons.qr_code_2_rounded, size: 19),
+                  icon: const Icon(Icons.qr_code_2_rounded, size: 18),
                   label: const Text('Mã QR kính'),
                 ),
               ),
@@ -212,119 +389,41 @@ class _LiveJourneyTabState extends State<LiveJourneyTab> {
     );
   }
 
-  Widget _buildSimulationQuickBar(CaregiverViewModel vm) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kWarning.withValues(alpha: 0.30)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Row(
-            children: <Widget>[
-              Icon(Icons.bolt_rounded, size: 16, color: kWarning),
-              SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Bảng thử nhanh kịch bản Demo (không cần kính thật)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: kWarning,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: <Widget>[
-              ActionChip(
-                avatar: const Icon(
-                  Icons.add_a_photo_outlined,
-                  size: 16,
-                  color: kAccent,
-                ),
-                label: const Text('Giả lập gửi ảnh hỏi'),
-                onPressed: () {
-                  vm.triggerDemoAssistSnapshot();
-                  widget.onOpenAssistTab();
-                },
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.sos_rounded, size: 16, color: kDanger),
-                label: const Text('Giả lập SOS khẩn'),
-                onPressed: vm.triggerDemoSos,
-              ),
-              ActionChip(
-                avatar: Icon(
-                  vm.navigationState == 'navigating'
-                      ? Icons.visibility_off_outlined
-                      : Icons.directions_walk,
-                  size: 16,
-                  color: kAccent2,
-                ),
-                label: Text(
-                  vm.navigationState == 'navigating'
-                      ? 'Thử kết thúc đi (ẩn GPS)'
-                      : 'Tiếp tục dẫn đường',
-                ),
-                onPressed: vm.toggleDemoPrivacyState,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmergencySosCard(SosIncident sos) {
-    return Container(
+    return SurfaceCard(
+      color: kDangerSoft,
+      borderColor: kDanger.withValues(alpha: 0.45),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF281219),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kDanger, width: 1.6),
-        boxShadow: <BoxShadow>[
-          BoxShadow(color: kDanger.withValues(alpha: 0.22), blurRadius: 24),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Icon(Icons.warning_amber_rounded, color: kDanger, size: 24),
+              const Icon(Icons.warning_rounded, color: kDanger, size: 22),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'TÍN HIỆU SOS ĐANG KÍCH HOẠT',
+                  'Cảnh báo khẩn cấp SOS',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: kDanger,
-                    letterSpacing: 0.4,
                   ),
                 ),
               ),
               Text(
                 formatRelativeTime(sos.createdAt),
-                style: const TextStyle(fontSize: 12, color: kTextSub),
+                style: const TextStyle(fontSize: 12, color: kInkSecondary),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(sos.message, style: const TextStyle(color: kText, fontSize: 14)),
-          const SizedBox(height: 6),
+          Text(sos.message, style: const TextStyle(fontSize: 14, color: kInk)),
+          const SizedBox(height: 4),
           Text(
-            'Nguồn kích hoạt: ${sos.trigger} · Sai số GPS ±${sos.accuracyM.toStringAsFixed(1)} m'
+            'Sai số GPS ±${sos.accuracyM.toStringAsFixed(1)} m'
             '${sos.batteryPercent != null ? ' · Pin kính ${sos.batteryPercent}%' : ''}',
-            style: const TextStyle(fontSize: 12, color: kTextSub),
+            style: const TextStyle(fontSize: 12.5, color: kInkSecondary),
           ),
           const SizedBox(height: 12),
           CameraScenePreview(
@@ -334,484 +433,379 @@ class _LiveJourneyTabState extends State<LiveJourneyTab> {
             height: 165,
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: <Widget>[
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: kDanger,
-                  foregroundColor: Colors.white,
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: kDanger),
+                  onPressed: _callWearer,
+                  icon: const Icon(Icons.call_rounded, size: 18),
+                  label: const Text('Gọi ngay'),
                 ),
-                onPressed: _callWearer,
-                icon: const Icon(Icons.call, size: 18),
-                label: const Text('Gọi khẩn cấp'),
               ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: () => _shareSosLocation(sos),
-                icon: const Icon(Icons.share_location_outlined, size: 18),
-                label: const Text('Chia sẻ vị trí'),
-              ),
-              TextButton.icon(
-                onPressed: widget.vm.resolveActiveSos,
-                icon: const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text('Đánh dấu đã an toàn'),
+                icon: const Icon(Icons.share_location_rounded, size: 18),
+                label: const Text('Chia sẻ'),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: widget.vm.resolveActiveSos,
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+              label: const Text('Xác nhận đã hỗ trợ an toàn'),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPendingAssistCallout(CaregiverViewModel vm) {
+  Widget _buildUnreadAssistBanner(CaregiverViewModel vm) {
     final latest = vm.latestPendingAssist;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: widget.onOpenAssistTab,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: kAccent2.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kAccent2.withValues(alpha: 0.45)),
-        ),
-        child: Row(
-          children: <Widget>[
-            const Icon(Icons.mark_chat_unread_rounded, color: kAccent2),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    'Có ${vm.pendingAssistCount} ảnh mới cần bạn xem giúp',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: kText,
-                    ),
-                  ),
-                  if (latest != null)
-                    Text(
-                      latest.question,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5, color: kTextSub),
-                    ),
-                ],
+    return SurfaceCard(
+      padding: EdgeInsets.zero,
+      color: kWarningSoft,
+      borderColor: const Color(0xFFFDE68A),
+      radius: 16,
+      child: InkWell(
+        onTap: widget.onOpenAssistTab,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.photo_camera_back_rounded,
+                  color: kWarning,
+                  size: 21,
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: kAccent2),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '${vm.wearerName} gửi ${vm.pendingAssistCount} ảnh nhờ xem giúp',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
+                    ),
+                    if (latest != null)
+                      Text(
+                        latest.question,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: kInkSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: kWarning),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSessionMapSection(CaregiverViewModel vm) {
-    if (!vm.isPrivacySharingActive) {
-      return Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder),
-        ),
-        child: Column(
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: kAccent2.withValues(alpha: 0.14),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.shield_moon_outlined,
-                size: 32,
-                color: kAccent2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Màn chắn riêng tư đang bật',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: kText,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Khi ${vm.wearerName} không mở phiên dẫn đường và không có cảnh báo khẩn cấp, tọa độ GPS được ẩn tự động để không biến ứng dụng thành công cụ giám sát 24/7.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: kTextSub),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final center = vm.wearerPosition ?? const LatLng(10.7594, 106.6735);
-    final routePoints = vm.activeRoute?.points ?? const <LatLng>[];
+  Widget _buildJourneySummaryCard(CaregiverViewModel vm) {
     final currentStep =
         (vm.activeRoute != null &&
             vm.currentStepIndex < vm.activeRoute!.steps.length)
         ? vm.activeRoute!.steps[vm.currentStepIndex]
         : null;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kBorder),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SizedBox(
-            height: 270,
-            child: Stack(
-              children: <Widget>[
-                FlutterMap(
-                  options: MapOptions(
-                    initialCenter: center,
-                    initialZoom: 15.6,
-                    onLongPress: (_, latLng) {
-                      _confirmPushDestination(
-                        PlaceLocation(
-                          name:
-                              'Điểm ghim (${latLng.latitude.toStringAsFixed(4)}, ${latLng.longitude.toStringAsFixed(4)})',
-                          address: 'Đã chọn trực tiếp trên bản đồ người thân',
-                          point: latLng,
-                        ),
-                      );
-                    },
-                  ),
+          Row(
+            children: <Widget>[
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: kPrimarySoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  vm.isPrivacySharingActive
+                      ? Icons.turn_left_rounded
+                      : Icons.home_outlined,
+                  color: kPrimary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'vn.secondsight.caregiver',
-                    ),
-                    if (routePoints.length >= 2)
-                      PolylineLayer(
-                        polylines: <Polyline>[
-                          Polyline(
-                            points: routePoints,
-                            strokeWidth: 5,
-                            color: kAccent,
-                          ),
-                        ],
+                    Text(
+                      vm.activeRoute?.destination.name ?? 'Chưa có hành trình',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
                       ),
-                    MarkerLayer(
-                      markers: <Marker>[
-                        // Điểm bị chặn (path_blocked)
-                        for (final blocked in vm.blockedLocations)
-                          Marker(
-                            point: blocked,
-                            width: 34,
-                            height: 34,
-                            child: Tooltip(
-                              message: 'Vỉa hè bị chặn (path_blocked)',
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: kWarning,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: kBg, width: 2),
-                                ),
-                                child: const Icon(
-                                  Icons.construction_rounded,
-                                  size: 18,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Đích đến
-                        if (vm.activeRoute != null)
-                          Marker(
-                            point: vm.activeRoute!.destination.point,
-                            width: 38,
-                            height: 38,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: kAccent2,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.flag_rounded,
-                                size: 20,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        // Vị trí hiện tại của người đeo kính
-                        if (vm.wearerPosition != null)
-                          Marker(
-                            point: vm.wearerPosition!,
-                            width: 46,
-                            height: 46,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: kAccent.withValues(alpha: 0.25),
-                                shape: BoxShape.circle,
-                              ),
-                              padding: const EdgeInsets.all(7),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: kAccent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: kBg, width: 2.5),
-                                ),
-                                child: const Icon(
-                                  Icons.person_pin_circle_rounded,
-                                  size: 19,
-                                  color: Color(0xFF001A14),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      currentStep?.text ??
+                          'Đang chờ ${vm.wearerName} bắt đầu hành trình mới',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: kInkSecondary,
+                      ),
                     ),
                   ],
                 ),
-                Positioned(
-                  right: 8,
-                  bottom: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xCC0D1117),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      '© OpenStreetMap · Nhấn giữ bản đồ để gửi điểm đến',
-                      style: TextStyle(fontSize: 10, color: kTextSub),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: kAccent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.turn_left_rounded, color: kAccent),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        currentStep?.text ?? 'Đang đi theo lộ trình đi bộ',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: kText,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'GPS ±${(vm.gpsAccuracyM ?? 4.0).toStringAsFixed(1)} m · '
-                        'Hướng kính ${(vm.glassHealth.stm32Heading ?? 0).round()}°',
-                        style: const TextStyle(fontSize: 12, color: kTextSub),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          const Divider(height: 24),
+          Row(
+            children: <Widget>[
+              _InlineMetric(
+                label: 'Sai số GPS',
+                value: '±${(vm.gpsAccuracyM ?? 4.0).toStringAsFixed(1)} m',
+              ),
+              const SizedBox(width: 16),
+              _InlineMetric(
+                label: 'Hướng kính',
+                value: '${(vm.glassHealth.stm32Heading ?? 0).round()}°',
+              ),
+              const SizedBox(width: 16),
+              _InlineMetric(
+                label: 'Pin kính',
+                value: vm.glassHealth.batteryPercent != null
+                    ? '${vm.glassHealth.batteryPercent}%'
+                    : '--',
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRemoteDestinationCard(CaregiverViewModel vm) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kBorder),
-      ),
+  Widget _buildRemoteDestinationSection(CaregiverViewModel vm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SectionHeader(
+          title: 'Đặt điểm đến hộ',
+          subtitle:
+              'Gửi gợi ý địa điểm sang kính — ${vm.wearerName} chỉ cần nói "Có" để bắt đầu đi.',
+        ),
+        SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              TextField(
+                controller: _searchCtrl,
+                onSubmitted: _runSearch,
+                decoration: InputDecoration(
+                  hintText: 'Tìm địa chỉ, bệnh viện, trạm xe buýt...',
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: kInkMuted,
+                  ),
+                  suffixIcon: _searching
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Tìm kiếm',
+                          icon: const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: kPrimary,
+                          ),
+                          onPressed: () => _runSearch(_searchCtrl.text),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _noteCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Lời nhắn đọc kèm (tùy chọn)',
+                  prefixIcon: Icon(
+                    Icons.record_voice_over_outlined,
+                    color: kInkMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (
+                var i = 0;
+                i < _searchResults.take(4).length;
+                i++
+              ) ...<Widget>[
+                if (i > 0) const Divider(height: 1),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 4,
+                  ),
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: kSurfaceMuted,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.place_outlined,
+                      size: 19,
+                      color: kPrimary,
+                    ),
+                  ),
+                  title: Text(
+                    _searchResults[i].name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: kInk,
+                    ),
+                  ),
+                  subtitle: _searchResults[i].address.isEmpty
+                      ? null
+                      : Text(
+                          _searchResults[i].address,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: kInkMuted,
+                          ),
+                        ),
+                  trailing: FilledButton.tonal(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kPrimarySoft,
+                      foregroundColor: kPrimary,
+                      minimumSize: const Size(64, 38),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                    ),
+                    onPressed: () => _confirmPushDestination(_searchResults[i]),
+                    child: const Text('Gửi'),
+                  ),
+                ),
+              ],
+              if (vm.destinationHistory.isNotEmpty) ...<Widget>[
+                const Divider(height: 20),
+                const Text(
+                  'Vừa gửi gần đây',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: kInkMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...vm.destinationHistory
+                    .take(2)
+                    .map(
+                      (d) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: <Widget>[
+                            Icon(
+                              d.status == 'accepted'
+                                  ? Icons.check_circle_rounded
+                                  : Icons.schedule_rounded,
+                              size: 16,
+                              color: d.status == 'accepted'
+                                  ? kSuccess
+                                  : kWarning,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                d.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: kInk,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              d.status == 'accepted'
+                                  ? 'Đã xác nhận'
+                                  : 'Đang chờ...',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: d.status == 'accepted'
+                                    ? kSuccess
+                                    : kWarning,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InlineMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InlineMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Row(
-            children: <Widget>[
-              Icon(Icons.send_to_mobile_rounded, color: kAccent, size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Đặt điểm đến hộ từ xa (Remote Assist)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: kText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 11.5, color: kInkMuted)),
+          const SizedBox(height: 2),
           Text(
-            'Khi ngoài đường quá ồn khiến nhận diện giọng nói khó nghe tên đường, bạn có thể chọn điểm đến và gửi sang kính. ${vm.wearerName} chỉ cần nói "Có" để bắt đầu đi.',
-            style: const TextStyle(fontSize: 12.5, color: kTextSub),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _searchCtrl,
-            onSubmitted: _runSearch,
-            decoration: InputDecoration(
-              hintText: 'Tìm địa chỉ, bệnh viện, trạm xe buýt...',
-              prefixIcon: const Icon(Icons.search_rounded, color: kTextSub),
-              suffixIcon: _searching
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: kAccent,
-                      ),
-                      onPressed: () => _runSearch(_searchCtrl.text),
-                    ),
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: kInk,
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _noteCtrl,
-            decoration: const InputDecoration(
-              hintText:
-                  'Lời nhắn đọc kèm (tùy chọn, VD: cổng Nguyễn Chí Thanh)',
-              prefixIcon: Icon(
-                Icons.record_voice_over_outlined,
-                color: kTextSub,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ..._searchResults
-              .take(4)
-              .map(
-                (place) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Material(
-                    color: kCard2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(color: kBorder),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      leading: const Icon(Icons.place_outlined, color: kAccent),
-                      title: Text(
-                        place.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: kText,
-                        ),
-                      ),
-                      subtitle: place.address.isEmpty
-                          ? null
-                          : Text(
-                              place.address,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: kTextSub,
-                              ),
-                            ),
-                      trailing: FilledButton.tonal(
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(64, 38),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          backgroundColor: kAccent.withValues(alpha: 0.16),
-                          foregroundColor: kAccent,
-                        ),
-                        onPressed: () => _confirmPushDestination(place),
-                        child: const Text('Gửi'),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          if (vm.destinationHistory.isNotEmpty) ...<Widget>[
-            const Divider(color: kBorder, height: 22),
-            const Text(
-              'Điểm đến vừa gửi gần đây',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: kTextSub,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...vm.destinationHistory
-                .take(2)
-                .map(
-                  (d) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          d.status == 'accepted'
-                              ? Icons.check_circle_rounded
-                              : Icons.schedule_rounded,
-                          size: 16,
-                          color: d.status == 'accepted' ? kAccent : kWarning,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            d.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, color: kText),
-                          ),
-                        ),
-                        Text(
-                          d.status == 'accepted'
-                              ? 'Đã xác nhận "Có"'
-                              : 'Chờ xác nhận...',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: d.status == 'accepted' ? kAccent : kWarning,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-          ],
         ],
       ),
     );

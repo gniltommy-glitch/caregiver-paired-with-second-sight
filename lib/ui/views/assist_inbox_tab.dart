@@ -19,11 +19,11 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
       <String, TextEditingController>{};
 
   static const List<String> _quickReplies = <String>[
-    'Đường phía trước thoáng, đi thẳng khoảng 5 mét.',
-    'Dừng lại chờ một chút, còn xe đang chạy ngang.',
-    'Bước chếch nhẹ sang bên phải, bên trái có xe đậu.',
-    'Đúng biển trạm xe buýt / địa điểm cần tìm rồi.',
-    'Đèn đi bộ đang đỏ, hãy đứng yên chờ đèn xanh.',
+    'Đường phía trước thoáng, đi thẳng 5 mét.',
+    'Dừng lại chờ chút, còn xe đang đi ngang.',
+    'Bước chếch sang phải, bên trái có xe đậu.',
+    'Đúng trạm xe buýt cần tìm rồi.',
+    'Đèn đi bộ đang đỏ, hãy chờ đèn xanh.',
   ];
 
   TextEditingController _ctrlFor(String id) =>
@@ -45,10 +45,11 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        backgroundColor: kCard2,
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: kInk,
         content: Text(
-          'Đã phát câu trả lời vào tai nghe kính của người dùng.',
-          style: TextStyle(color: kText),
+          'Đã đọc lời chỉ dẫn trực tiếp vào tai nghe kính.',
+          style: TextStyle(color: Colors.white),
         ),
       ),
     );
@@ -60,73 +61,44 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
     final items = vm.assistRequests;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: <Widget>[
-        SpotlightCard(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Text(
-                      'Hỏi người thân qua ảnh tĩnh',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: kText,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Khi VietOCR gặp biển mờ hoặc ngã tư phức tạp, ${vm.wearerName} gửi 1 tấm ảnh tĩnh từ kính. Câu trả lời của bạn được Piper/TTS đọc thẳng vào tai nghe.',
-                      style: const TextStyle(fontSize: 12.5, color: kTextSub),
-                    ),
-                  ],
-                ),
-              ),
-              if (vm.simulationMode) ...<Widget>[
-                const SizedBox(width: 10),
-                FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kCard2,
-                    foregroundColor: kAccent,
-                  ),
-                  onPressed: vm.triggerDemoAssistSnapshot,
-                  icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-                  label: const Text('Ảnh mẫu'),
-                ),
-              ],
-            ],
-          ),
+        const SectionHeader(
+          title: 'Hỏi người thân qua ảnh tĩnh',
+          subtitle: 'Khi kính gặp biển báo mờ hoặc ngã tư đông xe, ảnh chụp sẽ hiển thị tại đây để bạn phản hồi bằng giọng nói.',
         ),
-        const SizedBox(height: 16),
         if (items.isEmpty)
-          Container(
+          SurfaceCard(
             padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: kSurface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: kBorder),
-            ),
-            child: const Column(
+            child: Column(
               children: <Widget>[
-                Icon(Icons.photo_library_outlined, size: 40, color: kTextSub),
-                SizedBox(height: 10),
-                Text(
-                  'Chưa có yêu cầu xem ảnh nào',
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(
+                    color: kSurfaceMuted,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.photo_camera_outlined,
+                    size: 26,
+                    color: kInkMuted,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Chưa có yêu cầu xem ảnh',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: kText,
+                    color: kInk,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Khi người đeo kính nói "Aurelia, hỏi người thân", ảnh chụp tức thời sẽ xuất hiện tại đây.',
+                  'Khi ${vm.wearerName} nói "Aurelia, hỏi người thân", ảnh chụp từ kính sẽ xuất hiện ngay tại đây.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: kTextSub),
+                  style: const TextStyle(fontSize: 13.5, color: kInkSecondary),
                 ),
               ],
             ),
@@ -143,54 +115,28 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kSurface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: pending ? kAccent.withValues(alpha: 0.55) : kBorder,
-            width: pending ? 1.4 : 1.0,
-          ),
-        ),
+      child: SurfaceCard(
+        borderColor: pending ? kPrimary.withValues(alpha: 0.45) : kBorder,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            Row(
               children: <Widget>[
-                StatusPill(
-                  label: pending ? 'CẦN PHẢN HỒI' : 'ĐÃ TRẢ LỜI VÀO KÍNH',
-                  color: pending ? kWarning : kAccent,
+                StatusBadge(
+                  label: pending ? 'Cần hỗ trợ' : 'Đã phản hồi',
+                  textColor: pending ? kWarning : kSuccess,
+                  bgColor: pending ? kWarningSoft : kSuccessSoft,
                   icon: pending
-                      ? Icons.mark_chat_unread_rounded
-                      : Icons.check_circle_outline,
+                      ? Icons.mark_chat_unread_outlined
+                      : Icons.check_circle_outline_rounded,
                 ),
+                const Spacer(),
                 Text(
                   formatRelativeTime(req.createdAt),
-                  style: const TextStyle(fontSize: 12, color: kTextSub),
+                  style: const TextStyle(fontSize: 12, color: kInkMuted),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              req.question,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: kText,
-              ),
-            ),
-            if (req.contextNote.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 4),
-              Text(
-                req.contextNote,
-                style: const TextStyle(fontSize: 12, color: kTextSub),
-              ),
-            ],
             const SizedBox(height: 12),
             CameraScenePreview(
               capturedAt: req.createdAt,
@@ -198,43 +144,84 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
               sceneKind: req.sceneKind,
               detections: req.detections,
               tofMinM: req.tofMinM,
+              height: 215,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            // Bong bóng câu hỏi tự nhiên
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: kSurfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    req.question,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: kInk,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (req.contextNote.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Text(
+                      req.contextNote,
+                      style: const TextStyle(fontSize: 12, color: kInkMuted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             if (!pending && req.replyText != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: kAccent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kAccent.withValues(alpha: 0.30)),
+                  color: kPrimarySoft,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      'Đã đọc qua tai nghe (${req.repliedBy ?? vm.caregiverName}):',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: kAccent,
-                      ),
+                    Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.volume_up_rounded,
+                          size: 16,
+                          color: kPrimary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Đã phát qua tai nghe (${req.repliedBy ?? vm.caregiverName})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: kPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '"${req.replyText}"',
-                      style: const TextStyle(fontSize: 13.5, color: kText),
+                      style: const TextStyle(fontSize: 14, color: kInk),
                     ),
                   ],
                 ),
               )
             else ...<Widget>[
               const Text(
-                'Chọn câu trả lời nhanh (1 chạm):',
+                'Trả lời nhanh 1 chạm',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: kTextSub,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: kInkSecondary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -244,20 +231,13 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
                 children: _quickReplies
                     .map(
                       (preset) => ActionChip(
-                        backgroundColor: kCard2,
-                        side: BorderSide(
-                          color: kAccent.withValues(alpha: 0.30),
-                        ),
-                        label: Text(
-                          preset,
-                          style: const TextStyle(fontSize: 12, color: kText),
-                        ),
+                        label: Text(preset),
                         onPressed: () => _sendReply(req, preset),
                       ),
                     )
                     .toList(),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: <Widget>[
                   Expanded(
@@ -266,7 +246,7 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
                       onSubmitted: (v) => _sendReply(req, v),
                       decoration: InputDecoration(
                         hintText: vm.isListeningVoice
-                            ? 'Đang nghe giọng bạn...'
+                            ? 'Đang nghe giọng nói...'
                             : 'Nhập hoặc bấm mic nói lời chỉ dẫn...',
                       ),
                     ),
@@ -275,11 +255,12 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
                   IconButton.filledTonal(
                     style: IconButton.styleFrom(
                       backgroundColor: vm.isListeningVoice
-                          ? kDanger.withValues(alpha: 0.22)
-                          : kCard2,
+                          ? kDangerSoft
+                          : kSurfaceMuted,
+                      foregroundColor: vm.isListeningVoice ? kDanger : kPrimary,
                       minimumSize: const Size(48, 48),
                     ),
-                    tooltip: 'Nói để nhập lời chỉ dẫn',
+                    tooltip: 'Nói để trả lời',
                     onPressed: () => vm.toggleVoiceDictation((recognized) {
                       ctrl.text = recognized;
                     }),
@@ -287,17 +268,16 @@ class _AssistInboxTabState extends State<AssistInboxTab> {
                       vm.isListeningVoice
                           ? Icons.mic_rounded
                           : Icons.mic_none_rounded,
-                      color: vm.isListeningVoice ? kDanger : kAccent,
                     ),
                   ),
                   const SizedBox(width: 6),
                   FilledButton(
                     style: FilledButton.styleFrom(
-                      minimumSize: const Size(56, 48),
+                      minimumSize: const Size(48, 48),
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
                     onPressed: () => _sendReply(req, ctrl.text),
-                    child: const Icon(Icons.send_rounded, size: 20),
+                    child: const Icon(Icons.send_rounded, size: 19),
                   ),
                 ],
               ),

@@ -142,15 +142,12 @@ void main() {
     // Chuyển sang tab Thiết bị
     await tester.tap(find.text('Thiết bị'));
     await tester.pumpAndSettle();
-    expect(find.text('Giám sát kỹ thuật kính từ xa'), findsOneWidget);
+    expect(find.text('Kính đang hoạt động ổn định'), findsOneWidget);
 
     // Chuyển sang tab Ghép đôi
     await tester.tap(find.text('Ghép đôi'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Tạo mã QR cấu hình một lần cho Kính & App chính'),
-      findsOneWidget,
-    );
+    expect(find.text('Ghép đôi nhanh với SecondSight'), findsOneWidget);
 
     vm.dispose();
     await tester.binding.setSurfaceSize(null);

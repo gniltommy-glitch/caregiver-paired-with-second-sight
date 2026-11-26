@@ -1,254 +1,263 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// ─── Bảng màu đồng bộ hệ sinh thái SecondSight ─────────────────────
-const kBg = Color(0xFF0D1117);
-const kSurface = Color(0xFF161B22);
-const kCard2 = Color(0xFF1C2430);
-const kAccent = Color(0xFF22D3A5);
-const kAccentSoft = Color(0xFF80E8C8);
-const kAccent2 = Color(0xFF818CF8);
-const kDanger = Color(0xFFFF5370);
-const kWarning = Color(0xFFF59E0B);
-const kText = Color(0xFFE6EDF3);
-const kTextSub = Color(0xFF8B949E);
-const kBorder = Color(0xFF21262D);
+// ─── Design Tokens (UI/UX Pro Max — Healthcare & Family Safety Light) ───
+const kCanvas = Color(0xFFF4F6F8); // Warm alabaster canvas
+const kSurface = Color(0xFFFFFFFF); // Crisp elevated white cards
+const kSurfaceMuted = Color(0xFFEEF2F6); // Secondary recessed surfaces
+const kPrimary = Color(
+  0xFF0F766E,
+); // Calm trustworthy deep teal (5.4:1 on white)
+const kPrimarySoft = Color(0xFFE6F4F1); // Subtle teal tint
+const kInk = Color(0xFF0F172A); // Deep slate ink (16.5:1)
+const kInkSecondary = Color(0xFF475569); // Readable body secondary (7.2:1)
+const kInkMuted = Color(0xFF64748B); // Captions & timestamps (4.8:1)
+const kBorder = Color(0xFFE2E8F0); // Subtle 1px hairline border
+const kDivider = Color(0xFFF1F5F9); // Inset row divider
+
+const kDanger = Color(0xFFDC2626); // Emergency SOS red
+const kDangerSoft = Color(0xFFFEF2F2);
+const kWarning = Color(0xFFB45309); // High-contrast amber
+const kWarningSoft = Color(0xFFFFFBEB);
+const kSuccess = Color(0xFF047857); // Safe emerald
+const kSuccessSoft = Color(0xFFECFDF5);
+const kInfo = Color(0xFF0369A1); // Calm sky-blue info
+const kInfoSoft = Color(0xFFF0F9FF);
+
+// Shared spacing tokens (4/8dp rhythm)
+const double kSpaceXs = 4;
+const double kSpaceSm = 8;
+const double kSpaceMd = 16;
+const double kSpaceLg = 24;
+
+// Shared elevation shadow (soft ambient, zero neon glow)
+final List<BoxShadow> kCardShadow = <BoxShadow>[
+  BoxShadow(
+    color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+    blurRadius: 14,
+    offset: const Offset(0, 4),
+  ),
+];
 
 ThemeData buildCaregiverTheme() {
   const base = TextStyle(fontFamily: 'BeVietnamPro');
   final textTheme = TextTheme(
     headlineLarge: base.copyWith(
-      fontSize: 28,
+      fontSize: 26,
       fontWeight: FontWeight.w800,
-      color: kText,
+      color: kInk,
       letterSpacing: -0.5,
+      height: 1.2,
     ),
     headlineMedium: base.copyWith(
-      fontSize: 22,
+      fontSize: 20,
       fontWeight: FontWeight.w700,
-      color: kText,
+      color: kInk,
+      letterSpacing: -0.3,
+      height: 1.25,
     ),
     titleLarge: base.copyWith(
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: FontWeight.w700,
-      color: kText,
+      color: kInk,
+      height: 1.3,
     ),
     titleMedium: base.copyWith(
       fontSize: 15,
       fontWeight: FontWeight.w600,
-      color: kText,
+      color: kInk,
+      height: 1.35,
     ),
     bodyLarge: base.copyWith(
       fontSize: 15,
       fontWeight: FontWeight.w400,
-      color: kText,
+      color: kInk,
+      height: 1.5,
+    ),
+    bodyMedium: base.copyWith(
+      fontSize: 13.5,
+      fontWeight: FontWeight.w400,
+      color: kInkSecondary,
       height: 1.45,
     ),
-    bodyMedium: base.copyWith(fontSize: 13.5, color: kTextSub, height: 1.45),
     labelLarge: base.copyWith(
-      fontSize: 13,
+      fontSize: 13.5,
       fontWeight: FontWeight.w600,
-      color: kText,
-      letterSpacing: 0.2,
+      color: kInk,
     ),
   );
 
   return ThemeData(
     useMaterial3: true,
     fontFamily: 'BeVietnamPro',
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: kBg,
-    colorScheme: const ColorScheme.dark(
-      primary: kAccent,
-      secondary: kAccent2,
-      error: kDanger,
-      surface: kSurface,
-      onPrimary: Color(0xFF001A14),
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: kCanvas,
+    colorScheme: const ColorScheme.light(
+      primary: kPrimary,
+      onPrimary: Colors.white,
+      secondary: kInfo,
       onSecondary: Colors.white,
-      onSurface: kText,
+      error: kDanger,
       onError: Colors.white,
+      surface: kSurface,
+      onSurface: kInk,
+      outline: kBorder,
     ),
     textTheme: textTheme,
     appBarTheme: AppBarTheme(
-      backgroundColor: kBg,
+      backgroundColor: kSurface,
+      foregroundColor: kInk,
       elevation: 0,
+      scrolledUnderElevation: 0.5,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: base.copyWith(
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: FontWeight.w700,
-        color: kText,
+        color: kInk,
       ),
-      iconTheme: const IconThemeData(color: kAccent),
+      iconTheme: const IconThemeData(color: kInk, size: 22),
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: const Color(0xFF11161F),
-      indicatorColor: kAccent.withValues(alpha: 0.16),
+      backgroundColor: kSurface,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: kPrimarySoft,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return const IconThemeData(color: kAccent, size: 25);
+          return const IconThemeData(color: kPrimary, size: 24);
         }
-        return const IconThemeData(color: kTextSub, size: 24);
+        return const IconThemeData(color: kInkMuted, size: 23);
       }),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return base.copyWith(
           fontSize: 11.5,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          color: selected ? kAccent : kTextSub,
+          color: selected ? kPrimary : kInkMuted,
         );
       }),
-      height: 74,
+      height: 70,
       elevation: 0,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: kSurface,
-      hintStyle: base.copyWith(color: kTextSub, fontSize: 14),
+      fillColor: kSurfaceMuted,
+      hintStyle: base.copyWith(color: kInkMuted, fontSize: 14),
+      labelStyle: base.copyWith(color: kInkSecondary, fontSize: 13.5),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: kBorder),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: kBorder),
+        borderSide: const BorderSide(color: Colors.transparent),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: kAccent, width: 1.5),
+        borderSide: const BorderSide(color: kPrimary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: kAccent,
-        foregroundColor: const Color(0xFF001A14),
-        textStyle: base.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
-        minimumSize: const Size(56, 52),
+        backgroundColor: kPrimary,
+        foregroundColor: Colors.white,
+        textStyle: base.copyWith(fontSize: 14.5, fontWeight: FontWeight.w600),
+        minimumSize: const Size(52, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: 0,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: kAccent,
-        side: BorderSide(color: kAccent.withValues(alpha: 0.55)),
+        foregroundColor: kInk,
+        backgroundColor: kSurface,
+        side: const BorderSide(color: kBorder),
         textStyle: base.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
-        minimumSize: const Size(52, 48),
+        minimumSize: const Size(48, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     ),
-    cardTheme: CardThemeData(
-      color: kSurface,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: kBorder),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: kPrimary,
+        minimumSize: const Size(48, 44),
+        textStyle: base.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
       ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: kSurface,
+      selectedColor: kPrimarySoft,
+      labelStyle: base.copyWith(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        color: kInk,
+      ),
+      side: const BorderSide(color: kBorder),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    ),
+    dividerTheme: const DividerThemeData(
+      color: kDivider,
+      thickness: 1,
+      space: 1,
     ),
   );
 }
 
-/// Spotlight card đồng bộ phong cách React Bits của SecondSight.
-class SpotlightCard extends StatefulWidget {
+/// Clean elevated surface card with Material ink support.
+class SurfaceCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color accentColor;
+  final Color color;
+  final Color borderColor;
+  final double radius;
 
-  const SpotlightCard({
+  const SurfaceCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.accentColor = kAccentSoft,
+    this.padding = const EdgeInsets.all(16),
+    this.color = kSurface,
+    this.borderColor = kBorder,
+    this.radius = 20,
   });
 
   @override
-  State<SpotlightCard> createState() => _SpotlightCardState();
-}
-
-class _SpotlightCardState extends State<SpotlightCard> {
-  Alignment _light = const Alignment(-0.75, -0.85);
-  bool _active = false;
-
-  void _updatePoint(Offset local, double width) {
-    if (MediaQuery.disableAnimationsOf(context) || width <= 0) return;
-    setState(() {
-      _light = Alignment(
-        (local.dx / width * 2 - 1).clamp(-1.0, 1.0),
-        (local.dy / 220 * 2 - 1).clamp(-1.0, 1.0),
-      );
-      _active = true;
-    });
-  }
-
-  void _reset() {
-    if (!mounted) return;
-    setState(() {
-      _active = false;
-      _light = const Alignment(-0.75, -0.85);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, bounds) => MouseRegion(
-        onHover: (e) => _updatePoint(e.localPosition, bounds.maxWidth),
-        onExit: (_) => _reset(),
-        child: Listener(
-          onPointerDown: (e) => _updatePoint(e.localPosition, bounds.maxWidth),
-          onPointerUp: (_) => _reset(),
-          onPointerCancel: (_) => _reset(),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            padding: widget.padding,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: widget.accentColor.withValues(
-                  alpha: _active ? 0.42 : 0.20,
-                ),
-              ),
-              gradient: RadialGradient(
-                center: _light,
-                radius: 1.65,
-                colors: <Color>[
-                  widget.accentColor.withValues(alpha: _active ? 0.22 : 0.13),
-                  const Color(0xFF15202B),
-                  const Color(0xFF131822),
-                ],
-                stops: const <double>[0, 0.52, 1],
-              ),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: widget.child,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: kCardShadow,
+      ),
+      child: Material(
+        color: color,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+          side: BorderSide(color: borderColor),
         ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(padding: padding, child: child),
       ),
     );
   }
 }
 
-class StatusPill extends StatelessWidget {
+/// Subtle, high-contrast status badge (used sparingly for genuine state only).
+class StatusBadge extends StatelessWidget {
   final String label;
-  final Color color;
+  final Color textColor;
+  final Color bgColor;
   final IconData? icon;
 
-  const StatusPill({
+  const StatusBadge({
     super.key,
     required this.label,
-    required this.color,
+    required this.textColor,
+    required this.bgColor,
     this.icon,
   });
 
@@ -257,24 +266,22 @@ class StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: bgColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.40)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[
-            Icon(icon, size: 13, color: color),
+            Icon(icon, size: 14, color: textColor),
             const SizedBox(width: 5),
           ],
           Text(
             label,
             style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: color,
-              letterSpacing: 0.2,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
           ),
         ],
@@ -283,81 +290,94 @@ class StatusPill extends StatelessWidget {
   }
 }
 
-class MetricArcTile extends StatelessWidget {
+/// Clean 2-column metric tile with large tabular value and subtle progress bar.
+class CleanMetricTile extends StatelessWidget {
   final String label;
   final String value;
-  final String subtitle;
+  final String caption;
   final IconData icon;
-  final Color color;
+  final Color accentColor;
+  final Color accentBg;
   final double progress;
 
-  const MetricArcTile({
+  const CleanMetricTile({
     super.key,
     required this.label,
     required this.value,
+    required this.caption,
     required this.icon,
-    this.subtitle = '',
-    this.color = kAccent,
+    this.accentColor = kPrimary,
+    this.accentBg = kPrimarySoft,
     this.progress = 0.75,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SurfaceCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-      ),
-      child: Row(
+      radius: 18,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          SizedBox(
-            width: 46,
-            height: 46,
-            child: CustomPaint(
-              painter: _RingArcPainter(
-                progress: progress.clamp(0.0, 1.0),
-                color: color,
-              ),
-              child: Center(child: Icon(icon, size: 20, color: color)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
+          Row(
+            children: <Widget>[
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: accentBg,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
+                child: Icon(icon, size: 18, color: accentColor),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: kText,
+                    color: kInkSecondary,
                   ),
                 ),
-                if (subtitle.isNotEmpty)
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: kTextSub),
-                  ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: kInk,
+              letterSpacing: -0.4,
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: accentColor,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.05, 1.0),
+              minHeight: 5,
+              backgroundColor: kSurfaceMuted,
+              valueColor: AlwaysStoppedAnimation<Color>(accentColor),
             ),
           ),
         ],
@@ -366,39 +386,38 @@ class MetricArcTile extends StatelessWidget {
   }
 }
 
-class _RingArcPainter extends CustomPainter {
-  final double progress;
-  final Color color;
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
 
-  const _RingArcPainter({required this.progress, required this.color});
+  const SectionHeader({super.key, required this.title, this.subtitle});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 3;
-    final bgPaint = Paint()
-      ..color = color.withValues(alpha: 0.14)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5;
-    final fgPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 3.5;
-
-    canvas.drawCircle(center, radius, bgPaint);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      2 * math.pi * progress,
-      false,
-      fgPaint,
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: kInk,
+            ),
+          ),
+          if (subtitle != null && subtitle!.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: const TextStyle(fontSize: 13, color: kInkSecondary),
+            ),
+          ],
+        ],
+      ),
     );
   }
-
-  @override
-  bool shouldRepaint(covariant _RingArcPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 String formatRelativeTime(DateTime time) {
